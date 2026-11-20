@@ -160,6 +160,37 @@
     .col.right{border-left:0;border-top:1px solid var(--line)}
     .col{max-height:46vh}
   }
+  /* ---- phone tab layout (body.tabbed, set by phoneTabs() below) ----
+     The texture is docked on top (left in landscape); Layers, Layer and Texture
+     (the header controls) are tabs under it and only the open tab scrolls. */
+  #tabbar,#hdrPane{display:none}
+  body.tabbed #app{height:100vh;height:100dvh}
+  body.tabbed header{padding:8px 12px}
+  body.tabbed main{grid-template-columns:minmax(0,1fr);grid-template-rows:46% auto minmax(0,1fr)}
+  body.tabbed .stage{grid-row:1;grid-column:1}
+  body.tabbed #tabbar{grid-row:2;grid-column:1;display:flex;gap:6px;overflow-x:auto;padding:8px 10px;
+    background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line);scrollbar-width:none}
+  body.tabbed #tabbar::-webkit-scrollbar{display:none}
+  #tabbar .tab{flex:none;white-space:nowrap;min-height:34px;padding:0 14px;border-radius:999px;cursor:pointer;
+    background:var(--panel2);border:1px solid var(--line);color:var(--dim);font:inherit;font-size:12px}
+  #tabbar .tab.sel{background:var(--accent);border-color:var(--accent);color:#06140f;font-weight:600}
+  body.tabbed .col.left,body.tabbed .col.right,body.tabbed #hdrPane{grid-row:3;grid-column:1;max-height:none;border:0;display:none;
+    overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+  body.tabbed main[data-tab="layers"] .col.left,body.tabbed main[data-tab="layer"] .col.right{display:block}
+  body.tabbed main[data-tab="texture"] #hdrPane{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:14px 14px 24px;background:var(--panel)}
+  body.tabbed #hdrPane .grp{flex-wrap:wrap}
+  @media (max-height:500px) and (orientation:landscape){
+    body.tabbed main{grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr)}
+    body.tabbed .stage{grid-row:1 / 3}
+    body.tabbed #tabbar{grid-column:2;grid-row:1;border-top:0;border-left:1px solid var(--line)}
+    body.tabbed .col.left,body.tabbed .col.right,body.tabbed #hdrPane{grid-column:2;grid-row:2;border-left:1px solid var(--line)}
+    body.tabbed header{padding:5px 12px}
+  }
+  @media (pointer:coarse){
+    input[type=range]{height:28px}
+    select,.btn{min-height:34px}
+    .toggle input{width:18px;height:18px}
+  }
 </style>
 </head>
 <body>
@@ -1616,6 +1647,43 @@ function updateNote(){
 
 /* ---- resize + tile bg refresh ---- */
 window.addEventListener('resize',function(){ sizePreview(); render(); updateTileBG(); });
+
+/* ---- phone tabs: Layers / Layer / Texture under the docked preview ---- */
+(function phoneTabs(){
+  var mq=matchMedia('(max-width:760px), (max-height:500px) and (orientation:landscape)');
+  var main=document.querySelector('main'), header=document.querySelector('header');
+  var hdrPane=document.createElement('div'); hdrPane.id='hdrPane'; main.appendChild(hdrPane);
+  var bar=document.createElement('nav'); bar.id='tabbar'; bar.setAttribute('role','tablist');
+  main.insertBefore(bar, main.querySelector('.col.right'));
+  var TABS=[['layers','Layers'],['layer','Layer'],['texture','Texture']], btns={};
+  TABS.forEach(function(t){
+    var b=document.createElement('button'); b.type='button'; b.className='tab'; b.textContent=t[1]; b.setAttribute('role','tab');
+    b.addEventListener('click',function(){ select(t[0]); }); bar.appendChild(b); btns[t[0]]=b;
+  });
+  var cur='layer';
+  try{ var v=localStorage.getItem('strata.tab'); if(btns[v]) cur=v; }catch(e){}
+  function select(id){
+    cur=id; main.dataset.tab=id;
+    for(var k in btns){ btns[k].classList.toggle('sel',k===id); btns[k].setAttribute('aria-selected',k===id?'true':'false'); }
+    try{ localStorage.setItem('strata.tab',id); }catch(e){}
+  }
+  // header controls (everything but the brand) move into the Texture tab on phones
+  var hdrKids=[].slice.call(header.children).filter(function(c){ return !c.classList.contains('brand'); });
+  function apply(){
+    document.body.classList.toggle('tabbed',mq.matches);
+    hdrKids.forEach(function(c){ (mq.matches?hdrPane:header).appendChild(c); });
+    select(cur);
+    requestAnimationFrame(function(){ sizePreview(); render(); updateTileBG(); });
+  }
+  if(mq.addEventListener) mq.addEventListener('change',apply); else mq.addListener(apply);
+  apply();
+  // picking a layer in the Layers tab opens it in the Layer tab
+  document.getElementById('layers').addEventListener('click',function(e){
+    if(!document.body.classList.contains('tabbed')) return;
+    if(e.target.closest('button,input,select,.handle')) return;
+    if(e.target.closest('.layer, .lrow, [data-i]')) select('layer');
+  });
+})();
 var _origRender=render;
 render=function(){ _origRender(); updateTileBG(); };
 
