@@ -243,6 +243,7 @@
         <option value="4096">4096</option>
       </select>
       <button class="btn primary" id="export">Export PNG</button>
+      <button class="btn" id="shelfBtn" title="Shared image shelf: send this texture to another snicker02 app">⇄ Shelf</button>
       <button class="btn" id="exportSet" title="Export color, height, normal, roughness, and AO as separate PNGs">Export set</button>
     </div>
   </header>
@@ -270,6 +271,7 @@
   </main>
 </div>
 
+<script src="https://snicker02.github.io/shared/bridge.js"></script>
 <script>
 /* ================= ENGINE (shared, validated GLSL ES 1.00) ================= */
 </script>
@@ -1696,6 +1698,16 @@ loadPreset('Rust & corrosion');
 presetSel.value='Rust & corrosion';
 updateNote();
 render();
+
+// shared image shelf (snicker02.github.io/shared/bridge.js): sends the preview tile
+if(window.SnickerShelf){
+  window.SnickerShelf.mount({
+    app:'Strata',
+    button:document.getElementById('shelfBtn'),
+    getImage:function(){ render(); return new Promise(function(res,rej){ canvas.toBlob(function(b){ b?res(b):rej(new Error('encode failed')); },'image/png'); }); },
+    getMeta:function(){ return { name:'strata_'+MAP_NAMES[state.outMode]+'_'+canvas.width+'.png' }; }
+  });
+} else document.getElementById('shelfBtn').hidden=true;
 })();
 </script>
 </body>
